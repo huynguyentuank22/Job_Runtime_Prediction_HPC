@@ -59,11 +59,15 @@ def parse_swf_file(file_path):
 
 # Example usage:
 if __name__ == "__main__":
-    folder = os.listdir('raw_dataset')
+    # folder = os.listdir('raw_dataset')
     # folder = folder[26:]
-    print(folder)
+    # print(folder)
+    path = r'output_swf\HCMUT-SuperNodeXP-2017-1.0.swf'
+    parse_swf_file(path)
 
     # for file in folder:
     #     extracted_file_swf = extract_swf_gz('raw_dataset\\' + file)
     #     parse_swf_file('output_swf\\' + extracted_file_swf)
+
+
         

@@ -108,3 +108,26 @@ def prepare_data_seq(df, feature_columns, target_column, statuss=1, seq_len=20, 
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     return {'train': train_dataloader, 'val': val_dataloader, 'test': test_dataloader}, scaler
+
+def prepare_data_DL(df, feature_columns, target_column, statuss=1):
+    # Step 1: Clean data
+    all_columns = feature_columns + [target_column]
+    df = clean_data(df, all_columns, status=statuss)
+
+    # Step 2: Split data into train, val, test (8:1:1)
+    train_df, test_df = train_test_split(df, test_size=0.2, random_state=42, shuffle=True)
+    val_df, test_df = train_test_split(test_df, test_size=0.5, random_state=42, shuffle=True)
+
+    # Step 3: Normalize train
+    train_df, scaler = normalize_data(train_df, all_columns)
+    val_df[all_columns] = scaler.transform(val_df[all_columns])
+    test_df[all_columns] = scaler.transform(test_df[all_columns])
+
+    X_train = train_df[feature_columns].values
+    Y_train = train_df[target_column].values
+    X_val = val_df[feature_columns].values
+    Y_val = val_df[target_column].values
+    X_test = test_df[feature_columns].values
+    Y_test = test_df[target_column].values
+
+    return X_train, X_val, X_test, Y_train, Y_val, Y_test, scaler

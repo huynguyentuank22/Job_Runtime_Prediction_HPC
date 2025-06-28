@@ -65,7 +65,7 @@ def prepare_data(df, feature_columns, target_column, statuss=1):
     df = clean_data(df, all_columns, status=statuss)
 
     # Step 2: Split data into train, test (8:2)
-    train_df, test_df = train_test_split(df, test_size=0.2, random_state=42, shuffle=True)
+    train_df, test_df = train_test_split(df, test_size=0.2, shuffle=True)
 
     # Step 3: Normalize train
     train_df, scaler = normalize_data(train_df, all_columns)
@@ -84,8 +84,8 @@ def prepare_data_seq(df, feature_columns, target_column, statuss=1, seq_len=20, 
     df = clean_data(df, all_columns, status=statuss)
 
     # Step 2: Split data into train, val, test (8:1:1)
-    train_df, test_df = train_test_split(df, test_size=0.2, random_state=42, shuffle=False)
-    val_df, test_df = train_test_split(test_df, test_size=0.5, random_state=42, shuffle=False)
+    train_df, test_df = train_test_split(df, test_size=0.2, shuffle=True)
+    val_df, test_df = train_test_split(test_df, test_size=0.5, shuffle=True)
 
     # Step 3: Normalize train
     train_df, scaler = normalize_data(train_df, all_columns)
@@ -115,8 +115,8 @@ def prepare_data_DL(df, feature_columns, target_column, statuss=1):
     df = clean_data(df, all_columns, status=statuss)
 
     # Step 2: Split data into train, val, test (8:1:1)
-    train_df, test_df = train_test_split(df, test_size=0.2, random_state=42, shuffle=True)
-    val_df, test_df = train_test_split(test_df, test_size=0.5, random_state=42, shuffle=True)
+    train_df, test_df = train_test_split(df, test_size=0.2, shuffle=True)
+    val_df, test_df = train_test_split(test_df, test_size=0.5, shuffle=True)
 
     # Step 3: Normalize train
     train_df, scaler = normalize_data(train_df, all_columns)

@@ -24,7 +24,7 @@ class JREP():
     def fit(self, X_train, Y_train):
         self.stacking_model.fit(X_train, Y_train)
         # Save the model
-        joblib.dump(self.stacking_model, 'models/stacking_model.pkl')
+        joblib.dump(self.stacking_model, '../models_HCMUT/stacking_model.pkl')
 
     def predict(self, X_test, scaler, num_features):
         Y_pred = self.stacking_model.predict(X_test)

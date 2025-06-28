@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, root_mean_squared_error
+import time
 
 # Time Embedding
 class TimeEmbedding(nn.Module):
@@ -104,7 +105,7 @@ class PCTransformer(nn.Module):
         optimizer = optim.Adam(model.parameters(), lr=0.001)
         
         best_val_loss = float('inf')
-        patience, trials = 5, 0
+        patience, trials = 30, 0
         
         for epoch in range(num_epochs):
             # Training phase
@@ -137,7 +138,7 @@ class PCTransformer(nn.Module):
             
             num_features = len(dataloaders['train'].dataset.feature_columns)
             # Evaluate metrics on validation set
-            val_rmse, val_mae, val_mse, val_r2 = self.evaluate_model(model, dataloaders['val'], device, scaler, num_features)
+            val_rmse, val_mae, val_mse, val_r2, infer_time = self.evaluate_model(model, dataloaders['val'], device, scaler, num_features)
             
             print(f'Epoch [{epoch+1}/{num_epochs}]')
             print(f'Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}')
@@ -148,7 +149,7 @@ class PCTransformer(nn.Module):
                 best_val_loss = avg_val_loss
                 trials = 0
                 # Save the best model
-                torch.save(model.state_dict(), 'models/best_pc_transformer_model.pth')
+                torch.save(model.state_dict(), '../models_HCMUT/best_pc_transformer_model.pth')
             else:
                 trials += 1
                 if trials >= patience:
@@ -161,6 +162,7 @@ class PCTransformer(nn.Module):
         all_preds = []
         all_targets = []
         
+        start_time = time.time()
         with torch.no_grad():
             for batch_x, batch_t, batch_y in dataloader:
                 batch_x, batch_t, batch_y = batch_x.to(device), batch_t.to(device), batch_y.to(device)
@@ -176,12 +178,14 @@ class PCTransformer(nn.Module):
                 
                 all_preds.extend(output)
                 all_targets.extend(batch_y)
-        
+        end_time = time.time()
+
         rmse = root_mean_squared_error(all_targets, all_preds)
         mse = mean_squared_error(all_targets, all_preds)
         r2 = r2_score(all_targets, all_preds)
         mae = mean_absolute_error(all_targets, all_preds)
-        return rmse, mae, mse, r2
+        inference_time = (end_time - start_time) / len(all_preds)
+        return rmse, mae, mse, r2, inference_time
     
     # Prediction Function
     def predict(self, x, t, device, scaler, num_features=6):

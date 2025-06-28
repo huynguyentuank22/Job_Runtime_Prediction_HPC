@@ -14,6 +14,7 @@ from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
 from catboost import CatBoostRegressor
 import random
+import time
 
 class MachineLearning:
     def __init__(self,X_train,X_val,X_test,Y_train,Y_val,Y_test):
@@ -497,6 +498,7 @@ class Dynamic_Weighted_Ensemble:
 
 
     def model_predict(self, X_test, y_test):
+        start_time = time.time()
         for i in range(1, self.num_sub + 1):
             sub_ensemble_key = f"sub_ensemble{i}"
             if sub_ensemble_key not in self.prediction_test:
@@ -531,8 +533,9 @@ class Dynamic_Weighted_Ensemble:
         # Inverse transform
         final_pred = self.scaler.inverse_transform(dummy_array_pred)[:, target_idx]
         y_test = self.scaler.inverse_transform(dummy_array_test)[:, target_idx]
-
-        self.line_plot(final_pred,y_test)
+        end_time = time.time()
+        
+        # self.line_plot(final_pred,y_test)
         final_mae = mean_absolute_error(y_test, final_pred)
         final_rmse = np.sqrt(mean_squared_error(y_test, final_pred))
         final_r2 = r2_score(y_test, final_pred)
@@ -547,12 +550,14 @@ class Dynamic_Weighted_Ensemble:
             "MAE": final_mae,
             "RMSE": final_rmse,
             "R² Score": final_r2,
+            "Inference Time": (end_time - start_time)/len(final_pred)
         }
 
         print('Predict on Test Set')
         print("MAE: ", final_mae)
         print("RMSE: ", final_rmse)
         print("R2: ", final_r2)
+        print('Inference Time: ', (end_time - start_time)/len(final_pred))
         return self.metrics
 
 

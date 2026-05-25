@@ -1,0 +1,19 @@
+# Core scientific computing
+numpy
+pandas
+scipy
+
+# Machine Learning
+scikit-learn
+xgboost
+lightgbm
+catboost
+
+# Deep Learning
+torch
+
+# Visualization
+matplotlib
+
+# Model persistence
+joblib

@@ -10,12 +10,80 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, ExtraTreesRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.svm import SVR
-from xgboost import XGBRegressor
+from xgboost import XGBRegressor as _XGBRegressor
+import xgboost as xgb
 from lightgbm import LGBMRegressor
 from catboost import CatBoostRegressor
 import random
 import time
 
+class XGBRegressor(_XGBRegressor):
+    """GPU-aware XGBRegressor that auto-converts CPU data to GPU DMatrix."""
+    def predict(self, X, **kwargs):
+        if isinstance(X, np.ndarray):
+            dmat = xgb.DMatrix(X)
+            dmat.set_info(feature_names=None)
+            return self.get_booster().predict(dmat)
+        return super().predict(X, **kwargs)
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
+
+class TorchMLPRegressor:
+    def __init__(self, hidden_layer_sizes=(64, 128, 64), activation="relu", solver="adam", max_iter=1000, learning_rate_init=0.001):
+        self.hidden_layer_sizes = hidden_layer_sizes
+        self.max_iter = max_iter
+        self.learning_rate_init = learning_rate_init
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = None
+
+    def _build_model(self, input_size):
+        layers = []
+        in_features = input_size
+        for out_features in self.hidden_layer_sizes:
+            layers.append(nn.Linear(in_features, out_features))
+            layers.append(nn.ReLU())
+            in_features = out_features
+        layers.append(nn.Linear(in_features, 1))
+        return nn.Sequential(*layers).to(self.device)
+
+    def fit(self, X, y):
+        if hasattr(X, "to_numpy"): X = X.to_numpy()
+        if hasattr(y, "to_numpy"): y = y.to_numpy()
+        if hasattr(X, "get"): X = X.get()
+        if hasattr(y, "get"): y = y.get()
+        
+        X_tensor = torch.tensor(X, dtype=torch.float32)
+        y_tensor = torch.tensor(y, dtype=torch.float32).view(-1, 1)
+
+        self.model = self._build_model(X_tensor.shape[1])
+        optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate_init)
+        criterion = nn.MSELoss()
+        
+        dataset = TensorDataset(X_tensor, y_tensor)
+        dataloader = DataLoader(dataset, batch_size=256, shuffle=True)
+
+        self.model.train()
+        for epoch in range(self.max_iter):
+            for batch_X, batch_y in dataloader:
+                batch_X, batch_y = batch_X.to(self.device), batch_y.to(self.device)
+                optimizer.zero_grad()
+                outputs = self.model(batch_X)
+                loss = criterion(outputs, batch_y)
+                loss.backward()
+                optimizer.step()
+        return self
+
+    def predict(self, X):
+        if hasattr(X, "to_numpy"): X = X.to_numpy()
+        if hasattr(X, "get"): X = X.get()
+        X_tensor = torch.tensor(X, dtype=torch.float32).to(self.device)
+        self.model.eval()
+        with torch.no_grad():
+            preds = self.model(X_tensor).cpu().numpy().flatten()
+        return preds
 class MachineLearning:
     def __init__(self,X_train,X_val,X_test,Y_train,Y_val,Y_test):
         self.X_train = X_train
@@ -26,17 +94,17 @@ class MachineLearning:
         self.Y_test = Y_test
 
         self.configs = {
-            "mlp": {"hidden_layer_sizes": (64,128,64), "activation": "relu", "solver": "adam", "max_iter": 1000, "learning_rate_init": 0.001},
-            "randomforest": {"n_estimators": 500, "max_depth": None, "min_samples_split": 2, 'max_features': None, 'bootstrap': True},
-            "xgboost": {"n_estimators": 50, "learning_rate": 0.2, "max_depth": 3, "verbosity": 1},
+            "mlp": {"hidden_layer_sizes": (64,128,64), "activation": "relu", "solver": "adam", "max_iter": 200, "learning_rate_init": 0.001},
+            "randomforest": {"n_estimators": 100, "max_depth": 16, "min_samples_split": 2, 'max_features': 1.0, 'bootstrap': True},
+            "xgboost": {"n_estimators": 50, "learning_rate": 0.2, "max_depth": 3, "verbosity": 1, "tree_method": "hist", "device": "cuda"},
             "gradientboosting": {"loss": "squared_error", "learning_rate": 0.2, "n_estimators": 50, "subsample": 0.8},
             "extratrees": {"n_estimators": 50, "max_depth": 10, "min_samples_split": 5, "random_state": 42},
-            "lasso": {"alpha": 10,"fit_intercept": True,"max_iter": 500,"tol": 0.001,"random_state": 42},
+            "lasso": {"alpha": 10,"fit_intercept": True,"max_iter": 500,"tol": 0.001},
             # "knn": {"n_neighbors": 3, "weights": "uniform", "algorithm": "auto", "leaf_size": 30, "p": 2},
             # "linearreg": {"fit_intercept": False, "copy_X": True, "n_jobs": -1},
             # "decisiontree": {"criterion": "squared_error", "max_depth": 20, "min_samples_split": 3},
-            # "lightgbm": {"n_estimators": 100, "learning_rate": 0.1, "max_depth": -1, "num_leaves": 31, "random_state": 42},
-            # "catboost": {"iterations": 100, "learning_rate": 0.1, "depth": 6, "verbose": False},
+            "lightgbm": {"n_estimators": 100, "learning_rate": 0.1, "max_depth": -1, "num_leaves": 31, "random_state": 42, "device_type": "gpu"},
+            "catboost": {"iterations": 100, "learning_rate": 0.1, "depth": 6, "verbose": False, "task_type": "GPU"},
             # "svr": {"C": 1,"epsilon": 0.1,"kernel": "linear"},
             # "elasticnet": {"alpha": 1,"l1_ratio": 0.5,"fit_intercept": True,"max_iter": 1000,"tol":0.001},
             # "ridge": {"alpha": 0.1,"fit_intercept": True,'solver': 'auto'}
@@ -147,21 +215,47 @@ class MachineLearning:
         if model_name not in self.configs:
             raise ValueError(f"Model '{model_name}' không được hỗ trợ.")
         try:
+            if model_name == 'mlp':
+                return TorchMLPRegressor(**self.configs['mlp'])
+            
+            # cuML models
+            if model_name == 'randomforest':
+                from cuml.ensemble import RandomForestRegressor as cuRF
+                return cuRF(**self.configs['randomforest'])
+            if model_name == 'lasso':
+                from cuml.linear_model import Lasso as cuLasso
+                return cuLasso(**self.configs['lasso'])
+            if model_name == 'ridge':
+                from cuml.linear_model import Ridge as cuRidge
+                return cuRidge(**self.configs['ridge'])
+            if model_name == 'knn':
+                from cuml.neighbors import KNeighborsRegressor as cuKNN
+                return cuKNN(**self.configs['knn'])
+            if model_name == 'svr':
+                from cuml.svm import SVR as cuSVR
+                return cuSVR(**self.configs['svr'])
+            
+            # Simulated GPU models with XGBoost
+            if model_name == 'extratrees':
+                config = self.configs['extratrees'].copy()
+                n_est = config.get('n_estimators', 50)
+                max_depth = config.get('max_depth', 10)
+                return XGBRegressor(n_estimators=1, num_parallel_tree=n_est, max_depth=max_depth, 
+                                    subsample=0.8, colsample_bynode=0.8, learning_rate=1.0, 
+                                    tree_method='hist', device='cuda')
+            if model_name == 'gradientboosting':
+                config = self.configs['gradientboosting'].copy()
+                return XGBRegressor(n_estimators=config.get('n_estimators', 50), 
+                                    learning_rate=config.get('learning_rate', 0.2), 
+                                    tree_method='hist', device='cuda')
+            
             model_class = {
-                "knn": KNeighborsRegressor,
                 "linearreg": LinearRegression,
                 "decisiontree": DecisionTreeRegressor,
-                "randomforest": RandomForestRegressor,
                 "xgboost": XGBRegressor,
-                "gradientboosting": GradientBoostingRegressor,
-                "mlp": MLPRegressor,
-                "extratrees": ExtraTreesRegressor,
                 "lightgbm": LGBMRegressor,
                 "catboost": CatBoostRegressor,
-                "lasso": Lasso,
-                "svr": SVR,
                 "elasticnet": ElasticNet,
-                "ridge": Ridge,
             }[model_name]
             return model_class(**self.configs[model_name])
         except KeyError:

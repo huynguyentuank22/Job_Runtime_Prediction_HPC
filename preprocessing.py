@@ -36,12 +36,13 @@ def clean_data(df, columns, status=1):
     # Filter out rows with status != 1
     df = df[df['status'] == status]
 
-    # Keep only the specified columns
-    df = df[columns]
-
     # Remove noise: runtime < 600s or runtime < 1% of requested time
     df = df[df['run_time'] >= 600]
-    df = df[df['run_time'] >= 0.01 * df['requested_time']]
+    if 'requested_time' in df.columns:
+        df = df[df['run_time'] >= 0.01 * df['requested_time']]
+
+    # Keep only the specified columns
+    df = df[columns]
     
     return df
 

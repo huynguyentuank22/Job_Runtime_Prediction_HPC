@@ -39,7 +39,7 @@ class MultiHeadAttention(nn.Module):
         K = self.W_k(x).view(batch_size, -1, self.num_heads, self.d_k).transpose(1, 2)
         V = self.W_v(x).view(batch_size, -1, self.num_heads, self.d_k).transpose(1, 2)
 
-        scores = torch.matmul(Q, K.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.d_k, dtype=torch.float32))
+        scores = torch.matmul(Q, K.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.d_k, dtype=torch.float32, device=Q.device))
         attention = torch.softmax(scores, dim=-1)
         context = torch.matmul(attention, V)
 

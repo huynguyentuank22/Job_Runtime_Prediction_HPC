@@ -1,3 +1,5 @@
+--extra-index-url https://download.pytorch.org/whl/cu121
+
 # Core scientific computing
 numpy
 pandas
@@ -10,7 +12,7 @@ lightgbm
 catboost
 
 # Deep Learning
-torch
+torch>=2.0.0
 
 # Visualization
 matplotlib

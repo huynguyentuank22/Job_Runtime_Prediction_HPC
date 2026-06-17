@@ -1,17 +1,18 @@
-from sklearn.ensemble import RandomForestRegressor, StackingRegressor
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.svm import SVR
+from sklearn.ensemble import StackingRegressor
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, root_mean_squared_error
 from sklearn.neural_network import MLPRegressor
+from cuml.ensemble import RandomForestRegressor as cuRFRegressor
+from cuml.neighbors import KNeighborsRegressor as cuKNNRegressor
+from cuml.svm import SVR as cuSVR
 import joblib
 import numpy as np
 
 class JREP():
     def __init__(self):
         self.base_learners = [
-            ('rf', RandomForestRegressor(n_estimators=500, max_depth=None, min_samples_split=2, max_features=None, bootstrap=True)),
-            ('knn', KNeighborsRegressor(n_neighbors=5, weights='distance', algorithm='auto', leaf_size=30)),
-            ('svm', SVR(kernel='rbf', C=2.0, epsilon=0.1, gamma='scale')),
+            ('rf', cuRFRegressor(n_estimators=500, max_depth=20, min_samples_split=2, max_features=1.0, bootstrap=True)),
+            ('knn', cuKNNRegressor(n_neighbors=5)),
+            ('svm', cuSVR(kernel='rbf', C=2.0, epsilon=0.1)),
             ('dnn', MLPRegressor(hidden_layer_sizes=(64, 128, 64), activation='relu', solver='adam', max_iter=1000, learning_rate_init=0.001))
         ]
         self.meta_learner = MLPRegressor(hidden_layer_sizes=(64, 128, 32), activation='relu', solver='adam', max_iter=1000, learning_rate_init=0.001)

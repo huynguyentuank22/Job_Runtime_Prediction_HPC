@@ -4,8 +4,7 @@ import torch.optim as optim
 import numpy as np
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
-# Check if GPU is available, otherwise use CPU
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 # Define the LSTM model class
 class LSTM(nn.Module):
@@ -25,9 +24,9 @@ class LSTM(nn.Module):
         # Input shape: (batch_size, seq_len, input_size)
         batch_size = x.size(0)
         
-        # Initialize hidden state and cell state with zeros
-        h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(device)
-        c0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(device)
+        # Initialize hidden state and cell state with zeros on the same device as input
+        h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, device=x.device)
+        c0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, device=x.device)
         
         # Forward pass through LSTM
         out, _ = self.lstm(x, (h0, c0))
@@ -40,8 +39,8 @@ class LSTM(nn.Module):
         # out = self.relu(out)
         return out
     
-    def train_model(self, model, train_loader, val_loader, epochs, lr, scaler):
-        model.to(device)  # Move model to GPU/CPU
+    def train_model(self, model, train_loader, val_loader, epochs, lr, scaler, save_path='models/best_lstm_model.pth'):
+        device = next(model.parameters()).device  # Get the device the model is on
 
         criterion = nn.HuberLoss()  
         optimizer = optim.Adam(model.parameters(), lr=lr)  # Adam optimizer with learning rate
@@ -91,7 +90,7 @@ class LSTM(nn.Module):
                 best_val_loss = val_loss
                 patience_counter = 0
                 # Save the best model
-                torch.save(model.state_dict(), 'models/best_lstm_model.pth')
+                torch.save(model.state_dict(), save_path)
                 print(f"Model saved at epoch {epoch+1} with validation loss: {val_loss:.4f}")
             else:
                 patience_counter += 1
@@ -101,6 +100,7 @@ class LSTM(nn.Module):
 
     # Function to make predictions with inverse transform
     def predict(self, model, test_loader, scaler, num_features=6):
+        device = next(model.parameters()).device
         model.eval()  # Set model to evaluation mode
         predictions = []
         with torch.no_grad():
@@ -117,6 +117,7 @@ class LSTM(nn.Module):
 
     # Function to evaluate model on test set with RMSE, MAE, MSE, and R2 metrics
     def evaluate_model(self, model, test_loader, scaler, num_features=6):
+        device = next(model.parameters()).device
         model.eval()  # Set model to evaluation mode
         predictions = []
         true_values = []
